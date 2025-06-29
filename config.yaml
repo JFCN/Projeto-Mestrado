@@ -1,0 +1,302 @@
+# =============================================================================
+# SISTEMA IA TUBERCULOSE INFANTIL - CONFIGURAÇÃO COM VALIDAÇÃO ESTATÍSTICA
+# =============================================================================
+
+# CONFIGURAÇÕES DE SISTEMA
+system:
+  name: "Sistema de Predição Tuberculose Infantil"
+  version: "1.0.0"
+  author: "Janduhy Finizola da Cunha Neto"
+  log_level: "INFO"
+
+# CONFIGURAÇÕES DE DADOS
+data:
+  input_path: "D:/Mestrado/resultado_tratamento_banco/dataset_clinico.csv"
+  output_base_dir: "D:/Mestrado/resultado_tratamento_banco/tb_ia_resultados"
+
+  # Configurações básicas
+  target_mapping:
+    cura: 1
+    obito: 0
+
+  missing_strategy:
+    categorical: "unknown"
+    numerical: "median"
+
+# CONFIGURAÇÕES DE SELEÇÃO DE FEATURES
+feature_selection:
+  # Cenários a executar
+  scenarios: ["GERAL", "MASCULINO", "FEMININO"]
+
+  # Configurações das features
+  max_features: 20
+  use_temporal_critical: false
+
+  # Estratégia de substituição inteligente de features
+  feature_replacement:
+    enable_smart_replacement: true
+    replacement_strategy: "replace_originals"
+    prioritize_derived_features: true
+    log_replacements: true
+    validate_replacements: true
+    fallback_to_originals: true
+
+  # Features derivadas e suas configurações
+  derived_features:
+    score_comorbidades:
+      enabled: true
+      replaces: ["AGRAVAIDS", "AGRAVALCOO", "AGRAVDIABE", "AGRAVDOENC", "AGRAVDROGA", "AGRAVTABAC", "AGRAVOUTRA"]
+      priority: "high"
+
+    caso_complexo:
+      enabled: true
+      replaces: ["FORMA", "HIV"]
+      priority: "medium"
+      replacement_mode: "partial"
+
+    risco_social:
+      enabled: true
+      replaces: ["POP_LIBER", "POP_RUA", "POP_IMIG"]
+      priority: "high"
+
+    tempo_inicio_cat:
+      enabled: true
+      replaces: ["DIAS_INIC_TRAT"]
+      priority: "medium"
+      replacement_mode: "full"
+
+    duracao_prevista_cat:
+      enabled: true
+      replaces: []
+      priority: "high"
+      replacement_mode: "additive"
+
+# CONFIGURAÇÕES DO MODELO
+model:
+  # Modelo principal
+  use_tabpfn: true
+  tabpfn_fallback: "xgboost"
+
+  # Validação cruzada
+  cv_folds: 10
+  cv_strategy: "stratified"
+
+  # Divisão dos dados
+  test_size: 0.2
+  validation_size: 0.2
+  random_state: 42
+
+  # Balanceamento
+  balancing_strategy: "undersample_exact"
+
+  # Meta-modelo
+  meta_model_selection: "auto"
+  meta_model_cv_folds: 5
+
+  # Tratamento de features derivadas no modelo
+  derived_features_handling:
+    prioritize_derived_in_selection: true
+    derived_feature_weight_multiplier: 1.2
+    validate_derived_performance: true
+
+# CONFIGURAÇÕES ANTI-LEAKAGE
+leakage_detection:
+  check_obvious_leakage_only: true
+  temporal_threshold: 0.10
+  missing_threshold: 0.20
+  auc_difference_threshold: 0.20
+
+  # Ações simples
+  stop_on_critical: false
+  continue_on_high: true
+  focus_on_obvious_only: true
+
+  # Tratamento de features derivadas
+  derived_features_leakage:
+    treat_derived_as_safe: true
+    validate_derived_temporal_safety: true
+    mark_replaced_as_safe: true
+
+# =============================================================================
+# CONFIGURAÇÕES DE VALIDAÇÃO ESTATÍSTICA
+# =============================================================================
+statistical_validation:
+  # Habilitar validação estatística
+  enabled: true
+
+  # Nível de confiança para todos os testes (95%)
+  confidence_level: 0.95
+
+  # Margem para teste de não-inferioridade (5%)
+  non_inferiority_margin: 0.05
+
+  # Performance baseline do médico para comparação
+  baseline_performance: 0.70
+
+  # Iterações para bootstrap
+  bootstrap_iterations: 1000
+
+  # Configurações de testes específicos
+  tests:
+    # Teste 1: Efetividade de features derivadas
+    derived_features_test:
+      enabled: true
+      correlation_threshold: 0.5  # Correlação mínima significativa
+      improvement_threshold: 0.02  # Melhoria mínima esperada
+
+    # Teste 2: Comparação demográfica (bias detection)
+    demographic_comparison:
+      enabled: true
+      fairness_threshold: 0.05  # Diferença máxima entre grupos
+      groups_to_compare: ["MASCULINO", "FEMININO", "NEGROS_PARDOS", "OUTROS_RACA"]
+
+    # Teste 3: Não-inferioridade vs baseline médico
+    non_inferiority_test:
+      enabled: true
+      baseline_comparison: true
+      superiority_test: true  # Também testar superioridade
+
+    # Teste 4: Estabilidade do modelo
+    stability_test:
+      enabled: true
+      cv_variation_threshold: 0.10  # Coeficiente de variação máximo
+      reproducibility_threshold: 0.05
+
+    # Teste 5: Significância clínica
+    clinical_significance_test:
+      enabled: true
+      minimal_important_difference: 0.02  # 2% melhoria mínima
+      substantial_improvement: 0.05       # 5% melhoria substancial
+      outstanding_improvement: 0.10       # 10% melhoria excepcional
+
+  # Configurações específicas
+  medical_context:
+    disease: "tuberculose_infantil"
+    population: "pediatrica"
+    baseline_mortality_rate: 0.15
+    prevalence: 0.001
+    cost_false_positive: 100
+    cost_false_negative: 5000
+    cost_screening: 50
+
+  # Configurações de relatório
+  reporting:
+    generate_medical_report: true
+    include_confidence_intervals: true
+    include_effect_sizes: true
+    include_clinical_interpretation: true
+    format: "markdown"  # markdown ou latex
+
+    # Gráficos estatísticos
+    generate_statistical_plots: true
+    plot_confidence_intervals: true
+    plot_bootstrap_distributions: true
+
+# CONFIGURAÇÕES DE RELATÓRIOS
+reports:
+  # Relatórios básicos
+  generate_word: true
+  generate_technical: true
+  generate_executive: true
+  generate_json_export: true
+
+  # Visualizações
+  create_visualizations: true
+  visualization_formats: ["png"]
+  visualization_dpi: 300
+
+  # Relatórios de validação estatística
+  statistical_reports:
+    include_in_main_report: true
+    separate_statistical_report: true
+    publication_ready_format: true
+    include_medical_interpretation: true
+
+# CONFIGURAÇÕES DE PIPELINE
+pipeline:
+  # Controle de fluxo
+  save_checkpoints: true
+  resume_from_checkpoint: false
+  stop_on_failure: false
+
+  # Validação anti-leakage
+  stop_on_critical_leakage: false
+  continue_on_high_leakage: true
+
+  # Controle de validação estatística
+  stop_on_statistical_failure: false  # true = para se reprovar
+  require_statistical_validation: true  # true = obrigatória
+
+  # Configurações de processamento
+  simple_validation: true
+  focus_on_obvious_leakage: true
+  skip_excessive_checks: true
+  conservative_mode: false
+  allow_clinical_features: true
+
+  # Paralelização
+  parallel_execution: false
+  max_workers: 4
+
+# CONFIGURAÇÕES DE PERFORMANCE
+performance:
+  # Memória
+  max_memory_usage_gb: 8
+
+  # Processamento
+  batch_size: 1000
+  n_jobs: -1
+
+  # TabPFN com limites
+  tabpfn_max_samples: 1000
+  tabpfn_max_features: 100
+
+# CONFIGURAÇÕES DE DEBUG
+debug:
+  # Logs
+  verbose_logging: false
+  save_intermediate_results: false
+  focus_on_results: true
+  simple_messages: true
+
+  # Debug específico para validação estatística
+  statistical_debug:
+    detailed_test_logs: false
+    save_bootstrap_samples: false
+    validate_test_assumptions: true
+
+# CONFIGURAÇÕES ESPECÍFICAS PARA TUBERCULOSE
+tuberculosis_config:
+  # Contexto clínico
+  target_population: "Crianças"
+  primary_outcome: "sobrevivência"
+
+  # Validação médica
+  clinical_validation:
+    expect_age_effect: true
+    expect_hiv_effect: true
+    allow_medication_features: true
+    allow_clinical_features: true
+
+  # Thresholds médicos
+  medical_thresholds:
+    minimum_cases_per_class: 10
+    maximum_missing_per_feature: 0.8
+    minimum_clinical_relevance: 0.05
+
+  # Validação clínica
+  clinical_validation_statistical:
+    validate_clinical_logic: true
+    alert_clinical_contradictions: true
+    fallback_on_clinical_inconsistency: true
+
+    # Benchmarks
+    expected_sensitivity_range: [0.70, 0.95]
+    expected_specificity_range: [0.60, 0.90]
+    acceptable_ppv_threshold: 0.15
+
+# MENSAGENS PERSONALIZADAS
+messages:
+  focus: "Validação estatística médica com features derivadas"
+  approach: "Testes de hipótese para garantir segurança e efetividade clínica"
+  goal: "Sistema clinicamente validado e estatisticamente para tuberculose infantil"
